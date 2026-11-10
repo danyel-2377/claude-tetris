@@ -47,7 +47,29 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <div id="hs-gameover" class="hs-section hidden">
+          <p id="hs-gameover-msg" class="hs-new-record hidden"></p>
+          <form id="hs-name-form" class="hs-name-form hidden" autocomplete="off">
+            <label for="hs-name-input" class="label">TU NOMBRE</label>
+            <input id="hs-name-input" type="text" maxlength="12" placeholder="Anónimo" />
+            <button type="submit" class="hs-btn hs-btn-primary">Guardar</button>
+          </form>
+          <div id="hs-gameover-table"></div>
+          <p id="hs-gameover-bests" class="hs-bests"></p>
+          <button type="button" class="hs-btn hs-btn-danger hs-reset-btn">Borrar records</button>
+        </div>
         <button id="restart-btn">Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="start-screen" class="overlay">
+      <div class="overlay-box hs-section">
+        <p class="hs-title">TETRIS</p>
+        <p class="label">RÉCORDS</p>
+        <div id="hs-start-table"></div>
+        <p id="hs-start-bests" class="hs-bests"></p>
+        <button type="button" id="hs-play-btn" class="hs-btn hs-btn-primary hs-btn-big">Jugar</button>
+        <button type="button" class="hs-btn hs-btn-danger hs-reset-btn">Borrar records</button>
       </div>
     </div>
   </div>
