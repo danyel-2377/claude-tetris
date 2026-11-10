@@ -106,7 +106,7 @@ function clearLines() {
   if (cleared) {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
+    level = gameStartLevel + Math.floor(lines / 10);
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
@@ -230,13 +230,12 @@ function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    hidePauseMenu(true);
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    showPauseMenu();
   }
 }
 
@@ -260,23 +259,108 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = gameStartLevel = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  hidePauseMenu();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
+// ---- Pause menu ----
+const STORAGE_KEY_START_LEVEL = 'tetris.startLevel';
+const RESUME_GRACE_MS = 150;
+const MAX_START_LEVEL = 10;
+
+const pauseMenu = document.getElementById('pause-menu');
+const pauseResumeBtn = document.getElementById('pause-resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const pauseControlsBtn = document.getElementById('pause-controls-btn');
+const pauseControls = document.getElementById('pause-controls');
+const startLevelSelect = document.getElementById('start-level');
+
+let startLevel = loadStartLevel();  // level chosen for the next game
+let gameStartLevel = startLevel;    // level the running game started at
+let resumeGraceUntil = 0;           // game keys ignored until this timestamp
+
+function clampLevel(n) {
+  return Number.isInteger(n) && n >= 1 && n <= MAX_START_LEVEL ? n : 1;
+}
+
+function loadStartLevel() {
+  try {
+    return clampLevel(parseInt(localStorage.getItem(STORAGE_KEY_START_LEVEL), 10));
+  } catch (_) {
+    return 1;
+  }
+}
+
+function saveStartLevel(n) {
+  try {
+    localStorage.setItem(STORAGE_KEY_START_LEVEL, String(n));
+  } catch (_) { /* storage unavailable: keep in memory only */ }
+}
+
+function showPauseMenu() {
+  startLevelSelect.value = String(startLevel);
+  pauseMenu.classList.remove('hidden');
+}
+
+function hidePauseMenu(isResume) {
+  if (pauseMenu.contains(document.activeElement)) document.activeElement.blur();
+  pauseMenu.classList.add('hidden');
+  setControlsVisible(false);
+  // After resuming, swallow keys briefly so a Space/Enter meant for a menu
+  // button doesn't hit the game. Not armed on restart.
+  if (isResume) resumeGraceUntil = performance.now() + RESUME_GRACE_MS;
+}
+
+function setControlsVisible(visible) {
+  pauseControls.hidden = !visible;
+  pauseControlsBtn.setAttribute('aria-expanded', String(visible));
+}
+
+for (let n = 1; n <= MAX_START_LEVEL; n++) {
+  const opt = document.createElement('option');
+  opt.value = String(n);
+  opt.textContent = String(n);
+  startLevelSelect.appendChild(opt);
+}
+
+startLevelSelect.addEventListener('change', () => {
+  // Only affects the next game; the running one keeps gameStartLevel.
+  startLevel = clampLevel(parseInt(startLevelSelect.value, 10));
+  saveStartLevel(startLevel);
+});
+
+pauseResumeBtn.addEventListener('click', () => { if (paused) togglePause(); });
+pauseRestartBtn.addEventListener('click', init);
+pauseControlsBtn.addEventListener('click', () => setControlsVisible(pauseControls.hidden));
+
+function isFormField(el) {
+  return el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement;
+}
+
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
+  const isPauseKey = e.code === 'KeyP' || e.code === 'Escape';
+  if (isFormField(e.target) && !(isPauseKey && paused)) return;
+  if (isPauseKey) {
+    e.preventDefault();
+    if (!e.repeat) togglePause(); // holding P/Esc must not flicker the menu
+    return;
+  }
   if (paused || gameOver) return;
+  if (performance.now() < resumeGraceUntil) {
+    if (e.code === 'Space') e.preventDefault();
+    return;
+  }
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
