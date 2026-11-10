@@ -150,3 +150,87 @@ kbd {
 #restart-btn:hover {
   background: #9bbdff;
 }
+
+/* ---- Skins ---- */
+#skin-select {
+  background: #22223a;
+  color: #e0e0e0;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#skin-select:focus {
+  outline: 1px solid #7aa2f7;
+}
+
+/* Neon: pure black page, glowing accents */
+body[data-skin="neon"] {
+  background: #000;
+}
+body[data-skin="neon"] #board,
+body[data-skin="neon"] #next-canvas {
+  background: #000;
+  border-color: #ff00e6;
+  box-shadow: 0 0 18px rgba(255, 0, 230, 0.45);
+}
+body[data-skin="neon"] .value {
+  color: #00f0ff;
+  text-shadow: 0 0 8px #00f0ff;
+}
+body[data-skin="neon"] .label {
+  color: #ff00e6;
+}
+body[data-skin="neon"] #skin-select {
+  background: #000;
+  border-color: #ff00e6;
+}
+
+/* Pastel: soft muted colors, rounder corners */
+body[data-skin="pastel"] {
+  background: #221f30;
+}
+body[data-skin="pastel"] #board,
+body[data-skin="pastel"] #next-canvas {
+  background: #2c2a3c;
+  border-color: #4a4660;
+  border-radius: 12px;
+}
+body[data-skin="pastel"] .value {
+  color: #ffaebc;
+}
+body[data-skin="pastel"] .label {
+  color: #9a93b8;
+}
+body[data-skin="pastel"] #skin-select {
+  background: #2c2a3c;
+  border-color: #4a4660;
+  border-radius: 10px;
+}
+
+/* Pixel art: square corners, crisp scaling, monospace everywhere */
+body[data-skin="pixel"] {
+  background: #08080e;
+  font-family: 'Courier New', Courier, monospace;
+}
+body[data-skin="pixel"] #board,
+body[data-skin="pixel"] #next-canvas {
+  background: #0c0c14;
+  border-color: #f8b800;
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+body[data-skin="pixel"] .value {
+  color: #58d854;
+}
+body[data-skin="pixel"] .label {
+  color: #f8b800;
+}
+body[data-skin="pixel"] #skin-select {
+  background: #0c0c14;
+  border-color: #f8b800;
+  border-radius: 0;
+}
