@@ -110,6 +110,7 @@ function clearLines() {
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
+  hsTrackCombo(cleared);
 }
 
 function ghostY() {
@@ -383,6 +384,7 @@ function endGame() {
   overlayTitle.textContent = 'GAME OVER';
   overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
   overlay.classList.remove('hidden');
+  hsOnGameOver();
 }
 
 function togglePause() {
@@ -411,7 +413,7 @@ function loop(ts) {
     }
   }
   draw();
-  animId = requestAnimationFrame(loop);
+  if (!gameOver) animId = requestAnimationFrame(loop);
 }
 
 function init() {
@@ -423,6 +425,9 @@ function init() {
   gameOver = false;
   dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
+  combo = 0;
+  maxCombo = 0;
+  hsHideGameOver();
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -509,6 +514,7 @@ function isFormField(el) {
 
 document.addEventListener('keydown', e => {
   const isPauseKey = e.code === 'KeyP' || e.code === 'Escape';
+  if (!current) return; // start screen: no game yet
   if (isFormField(e.target) && !(isPauseKey && paused)) return;
   if (isPauseKey) {
     e.preventDefault();
@@ -544,4 +550,261 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', init);
 
-init();
+// ---- High scores ----
+
+const HS_KEY = 'tetris.highscores';
+const BESTS_KEY = 'tetris.bests';
+const HS_MAX = 5;
+const HS_NAME_MAX = 12;
+
+const startScreen = document.getElementById('start-screen');
+const hsPlayBtn = document.getElementById('hs-play-btn');
+const hsStartTable = document.getElementById('hs-start-table');
+const hsStartBests = document.getElementById('hs-start-bests');
+const hsGameOver = document.getElementById('hs-gameover');
+const hsGameOverMsg = document.getElementById('hs-gameover-msg');
+const hsNameForm = document.getElementById('hs-name-form');
+const hsNameInput = document.getElementById('hs-name-input');
+const hsGameOverTable = document.getElementById('hs-gameover-table');
+const hsGameOverBests = document.getElementById('hs-gameover-bests');
+
+// Consecutive line-clearing locks in the current game, and the max reached.
+let combo = 0;
+let maxCombo = 0;
+// Entry waiting for a name at game over (null when nothing is pending).
+let hsPendingEntry = null;
+// Messages about all-time bests beaten this game, shown next to the table.
+let hsBestMsgs = [];
+// True from game over until the first keyup in the name input (see hsOnGameOver).
+let hsSwallowRepeat = false;
+
+function hsTrackCombo(cleared) {
+  combo = cleared > 0 ? combo + 1 : 0;
+  if (combo > maxCombo) maxCombo = combo;
+}
+
+function hsReadJSON(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? null : JSON.parse(raw);
+  } catch (err) {
+    return null;
+  }
+}
+
+function hsWriteJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    // Storage full or unavailable: records just won't persist.
+  }
+}
+
+function hsCount(v) {
+  return Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0;
+}
+
+function loadHighScores() {
+  const data = hsReadJSON(HS_KEY);
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter(e => e && typeof e === 'object' && typeof e.name === 'string' && Number.isFinite(e.score))
+    .map(e => ({
+      name: e.name.slice(0, HS_NAME_MAX) || 'Anónimo',
+      score: hsCount(e.score),
+      lines: hsCount(e.lines),
+      level: hsCount(e.level) || 1,
+      date: typeof e.date === 'string' ? e.date : '',
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, HS_MAX);
+}
+
+function loadBests() {
+  const data = hsReadJSON(BESTS_KEY);
+  if (!data || typeof data !== 'object') return { bestCombo: 0, maxLines: 0 };
+  return { bestCombo: hsCount(data.bestCombo), maxLines: hsCount(data.maxLines) };
+}
+
+function hsQualifies(list, value) {
+  return value > 0 && (list.length < HS_MAX || value > list[list.length - 1].score);
+}
+
+// Inserts entry after any equal scores; returns its index, or -1 if it fell off.
+function hsInsert(list, entry) {
+  let idx = list.findIndex(e => entry.score > e.score);
+  if (idx === -1) idx = list.length;
+  list.splice(idx, 0, entry);
+  if (list.length > HS_MAX) list.length = HS_MAX;
+  return idx < HS_MAX ? idx : -1;
+}
+
+function hsFormatDate(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function hsEl(tag, text, className) {
+  const el = document.createElement(tag);
+  el.textContent = text;
+  if (className) el.className = className;
+  return el;
+}
+
+function renderHighScoreTable(container, list, highlightIdx) {
+  container.replaceChildren();
+  if (!list.length) {
+    container.appendChild(hsEl('p', 'Sin records todavía', 'hs-empty'));
+    return;
+  }
+  const table = document.createElement('table');
+  table.className = 'hs-table';
+  const head = document.createElement('tr');
+  ['#', 'Nombre', 'Puntos', 'Líneas', 'Nivel', 'Fecha'].forEach(h => head.appendChild(hsEl('th', h)));
+  table.appendChild(head);
+  list.forEach((e, i) => {
+    const tr = document.createElement('tr');
+    if (i === highlightIdx) tr.className = 'hs-highlight';
+    tr.appendChild(hsEl('td', String(i + 1)));
+    tr.appendChild(hsEl('td', e.name, 'hs-name'));
+    tr.appendChild(hsEl('td', e.score.toLocaleString(), 'hs-num'));
+    tr.appendChild(hsEl('td', String(e.lines), 'hs-num'));
+    tr.appendChild(hsEl('td', String(e.level), 'hs-num'));
+    tr.appendChild(hsEl('td', hsFormatDate(e.date), 'hs-date'));
+    table.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+
+function hsBestsText(bests) {
+  return `Mejor combo: ${bests.bestCombo} · Líneas máximas: ${bests.maxLines}`;
+}
+
+function renderStartScreen() {
+  renderHighScoreTable(hsStartTable, loadHighScores(), -1);
+  hsStartBests.textContent = hsBestsText(loadBests());
+}
+
+function renderGameOverRecords(highlightIdx) {
+  renderHighScoreTable(hsGameOverTable, loadHighScores(), highlightIdx);
+  hsGameOverBests.textContent = hsBestsText(loadBests());
+}
+
+function hsSetMessage(msgs) {
+  hsGameOverMsg.replaceChildren(...msgs.map(text => hsEl('span', text)));
+  hsGameOverMsg.classList.toggle('hidden', msgs.length === 0);
+}
+
+function hsOnGameOver() {
+  // A key-triggered game over stops the loop before it redraws, so paint the final board.
+  draw();
+
+  // Update all-time bests first so the summary below the table is current.
+  const bests = loadBests();
+  hsBestMsgs = [];
+  if (maxCombo > bests.bestCombo) {
+    bests.bestCombo = maxCombo;
+    hsBestMsgs.push(`¡Nuevo mejor combo: ${maxCombo}!`);
+  }
+  if (lines > bests.maxLines) {
+    bests.maxLines = lines;
+    hsBestMsgs.push(`¡Nuevo récord de líneas: ${lines}!`);
+  }
+  if (hsBestMsgs.length) hsWriteJSON(BESTS_KEY, bests);
+
+  overlayScore.textContent += ` · Combo máx: ${maxCombo}`;
+  hsGameOver.classList.remove('hidden');
+  const list = loadHighScores();
+  renderHighScoreTable(hsGameOverTable, list, -1);
+  hsGameOverBests.textContent = hsBestsText(bests);
+
+  if (hsQualifies(list, score)) {
+    hsPendingEntry = { score, lines, level, date: new Date().toISOString() };
+    hsSetMessage(['¡Nuevo récord!', ...hsBestMsgs]);
+    hsNameInput.value = '';
+    hsNameForm.classList.remove('hidden');
+    // The game-ending key may still be held: swallow its auto-repeat until it is released.
+    hsSwallowRepeat = true;
+    hsNameInput.focus();
+  } else {
+    hsPendingEntry = null;
+    hsSetMessage(hsBestMsgs);
+    hsNameForm.classList.add('hidden');
+  }
+}
+
+function hsSaveName() {
+  if (!hsPendingEntry) return;
+  const name = hsNameInput.value.trim().slice(0, HS_NAME_MAX) || 'Anónimo';
+  const list = loadHighScores();
+  const idx = hsInsert(list, { name, ...hsPendingEntry });
+  hsPendingEntry = null;
+  hsWriteJSON(HS_KEY, list);
+  hsNameForm.classList.add('hidden');
+  const place = idx >= 0 ? [`¡Nuevo récord! Puesto #${idx + 1}`] : [];
+  hsSetMessage([...place, ...hsBestMsgs]);
+  renderGameOverRecords(idx);
+  // Blur rather than focusing Reiniciar, so a held Enter can't auto-repeat into a restart.
+  hsNameInput.blur();
+}
+
+function hsHideGameOver() {
+  // Restarting without pressing Guardar still keeps a qualifying score.
+  if (hsPendingEntry) hsSaveName();
+  hsPendingEntry = null;
+  hsBestMsgs = [];
+  hsGameOver.classList.add('hidden');
+  hsNameForm.classList.add('hidden');
+  hsSetMessage([]);
+}
+
+function hsResetRecords() {
+  if (!confirm('¿Borrar todos los records? Esta acción no se puede deshacer.')) return;
+  try {
+    localStorage.removeItem(HS_KEY);
+    localStorage.removeItem(BESTS_KEY);
+  } catch (err) {
+    // Storage unavailable: nothing to clear.
+  }
+  renderStartScreen();
+  if (!hsGameOver.classList.contains('hidden')) {
+    // The bests just announced were cleared too; keep only the pending-entry notice.
+    hsBestMsgs = [];
+    hsSetMessage(hsPendingEntry ? ['¡Nuevo récord!'] : []);
+    renderGameOverRecords(-1);
+  }
+}
+
+function hsDrawEmptyBoard() {
+  paintBackground(ctx);
+  drawGrid();
+}
+
+hsNameInput.maxLength = HS_NAME_MAX;
+
+hsNameForm.addEventListener('submit', e => {
+  e.preventDefault();
+  hsSaveName();
+});
+
+hsNameInput.addEventListener('keydown', e => {
+  // Leading spaces are useless and usually leftover hard-drop presses that would fill maxlength.
+  const leadingSpace = e.key === ' ' && hsNameInput.value.trim() === '';
+  if (leadingSpace || (e.repeat && hsSwallowRepeat)) e.preventDefault();
+});
+
+hsNameInput.addEventListener('keyup', () => {
+  hsSwallowRepeat = false;
+});
+
+hsPlayBtn.addEventListener('click', () => {
+  startScreen.classList.add('hidden');
+  hsPlayBtn.blur();
+  init();
+});
+
+document.querySelectorAll('.hs-reset-btn').forEach(btn => btn.addEventListener('click', hsResetRecords));
+
+// Bootstrap: show the start screen over an empty board; the game starts on "Jugar".
+hsDrawEmptyBoard();
+renderStartScreen();

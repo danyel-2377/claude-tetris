@@ -13,6 +13,7 @@ Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canv
 - [Tetris](#tetris)
   - [Tabla de contenidos](#tabla-de-contenidos)
   - [Qué hace el proyecto](#qué-hace-el-proyecto)
+  - [Tabla de récords](#tabla-de-récords)
   - [Cómo ejecutar el juego](#cómo-ejecutar-el-juego)
     - [Opción 1: abrir el archivo directamente](#opción-1-abrir-el-archivo-directamente)
     - [Opción 2: servidor local (recomendado)](#opción-2-servidor-local-recomendado)
@@ -45,6 +46,22 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Menú de pausa** con opciones para reanudar, reiniciar, ver los controles y elegir el nivel inicial.
 - **Game Over** con opción de reinicio.
 - **Skins** intercambiables en caliente (Retro, Neón, Pastel y Pixel art) que se recuerdan entre sesiones.
+- **Pantalla de inicio** con la tabla de récords y el botón **Jugar** (el juego ya no arranca solo al cargar la página).
+- **Tabla de récords local** (top 5) guardada en `localStorage`, con el **mejor combo** y las **líneas máximas** de todas las partidas.
+
+---
+
+## Tabla de récords
+
+Las mejores puntuaciones se guardan en el navegador (`localStorage`), así que se conservan entre recargas pero son locales a cada navegador.
+
+- Se guardan las **5 mejores puntuaciones** con nombre, puntos, líneas, nivel y fecha (clave `tetris.highscores`).
+- Al terminar la partida, si la puntuación entra en el top 5 (y es mayor que 0), aparece **¡Nuevo récord!** y un campo **Tu nombre** (máx. 12 caracteres). Pulsa `Enter` o **Guardar**; si lo dejas vacío se guarda como **Anónimo**. La fila nueva se resalta en la tabla.
+- Si la puntuación no entra en el top, se muestra la tabla directamente.
+- También se guardan el **mejor combo** (piezas consecutivas que eliminan al menos una línea) y las **líneas máximas** conseguidas en una partida (clave `tetris.bests`). Si se superan, se avisa en la pantalla de Game Over.
+- La tabla aparece en la **pantalla de inicio** y en el overlay de **Game Over**.
+- El botón **Borrar records** (en ambas pantallas) pide confirmación y borra todos los datos guardados.
+- Si los datos guardados están corruptos o `localStorage` no está disponible, el juego sigue funcionando con una tabla vacía.
 
 ---
 
@@ -130,7 +147,8 @@ Define la estructura visual:
 
 - Un `<canvas id="board">` de **300 × 600** píxeles donde se renderiza el tablero.
 - Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza, el selector de skin y la lista de controles.
-- Un overlay para el estado **GAME OVER** y otro independiente (`#pause-menu`) para el menú de pausa.
+- Un overlay para el estado **GAME OVER** (incluye la tabla de récords y el campo de nombre) y otro independiente (`#pause-menu`) para el menú de pausa.
+- Una pantalla de inicio (`#start-screen`) con la tabla de récords y el botón **Jugar**.
 
 ### 2. `style.css`
 
@@ -154,6 +172,8 @@ Contiene toda la lógica del juego. A grandes rasgos:
 ### Flujo del juego
 
 ```
+carga de la página → tablero vacío + pantalla de inicio (récords)
+  ↓ botón "Jugar"
 init()
   ├─ createBoard()                  → matriz vacía
   ├─ next = randomPiece()
@@ -169,7 +189,7 @@ init()
    keydown → mover / rotar / soft-drop / hard-drop / menú de pausa
 ```
 
-Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara `endGame()` y se muestra el overlay de **Game Over**.
+Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara `endGame()`, el bucle deja de pedir frames y se muestra el overlay de **Game Over** con la tabla de récords (y el campo de nombre si la puntuación entra en el top 5).
 
 ---
 

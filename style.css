@@ -334,3 +334,154 @@ body[data-skin="pixel"] #skin-select {
   border-color: #f8b800;
   border-radius: 0;
 }
+
+/* ---- High scores ---- */
+.hs-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.hs-section.hidden,
+.hs-name-form.hidden,
+.hs-new-record.hidden {
+  display: none;
+}
+
+.hs-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 8px;
+  color: #7aa2f7;
+}
+
+.hs-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 340px;
+}
+
+.hs-table th {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #555570;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.hs-table td {
+  padding: 4px 6px;
+  color: #c0c0d0;
+}
+
+.hs-table .hs-name {
+  text-align: left;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hs-table .hs-num {
+  font-family: 'Courier New', Courier, monospace;
+  text-align: right;
+  color: #7aa2f7;
+}
+
+.hs-table .hs-date {
+  color: #666680;
+  font-size: 11px;
+}
+
+.hs-table tr.hs-highlight td {
+  background: rgba(255, 213, 79, 0.15);
+  color: #ffd54f;
+  font-weight: 700;
+}
+
+.hs-empty {
+  font-size: 12px;
+  color: #666680;
+}
+
+.hs-bests {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: #888;
+}
+
+.hs-new-record {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffd54f;
+  animation: hs-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes hs-pulse {
+  from { opacity: 0.6; }
+  to   { opacity: 1; }
+}
+
+.hs-name-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#hs-name-input {
+  width: 140px;
+  background: #1a1a25;
+  border: 1px solid #3a3a5a;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #e0e0e0;
+  font-size: 14px;
+  user-select: text;
+}
+
+#hs-name-input:focus {
+  outline: none;
+  border-color: #7aa2f7;
+}
+
+.hs-btn {
+  background: transparent;
+  color: #7aa2f7;
+  border: 1px solid #3a3a5a;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hs-btn-primary {
+  background: #7aa2f7;
+  color: #0f0f17;
+  border-color: #7aa2f7;
+}
+
+.hs-btn-primary:hover {
+  background: #9bbdff;
+}
+
+.hs-btn-big {
+  padding: 10px 36px;
+  font-size: 16px;
+}
+
+.hs-btn-danger {
+  color: #e57373;
+  border-color: #5a2a2a;
+}
+
+.hs-btn-danger:hover {
+  background: rgba(229, 115, 115, 0.15);
+}
